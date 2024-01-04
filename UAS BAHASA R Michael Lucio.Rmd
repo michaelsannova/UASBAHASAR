@@ -1,0 +1,27 @@
+---
+title: "UAS Bahasa R"
+author: "36220024Michael & 36220013Lucio"
+---
+
+#LOAD LIBRARY
+```{r}
+library(dplyr)
+library(Metrics)
+library(ggplot2)
+library(boot)
+library(performanceEstimation)
+library(pROC)
+library(moments)
+library(outliers)
+library(caret)
+library(corrplot)
+library(GGally)
+```
+
+#LOAD DATASET
+```{r}
+profiling=read.csv('profiling.csv', sep=';')
+admisi=read.csv('admisi.csv', sep=';')
+```
+
+
