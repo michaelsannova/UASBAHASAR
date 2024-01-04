@@ -24,4 +24,47 @@ profiling=read.csv('profiling.csv', sep=';')
 admisi=read.csv('admisi.csv', sep=';')
 ```
 
+#MENGUBAH DATA MENJADI NUMERIC
+```{r}
+profiling$IPK=gsub(",", ".", profiling$IPK)
+profiling$USIA=as.numeric(profiling$USIA)
+profiling$IPK=as.numeric(profiling$IPK)
+profiling$Ranking_Uni_Asal=as.numeric(profiling$Ranking_Uni_Asal)
 
+admisi$GRE=as.numeric(admisi$GRE)
+admisi$TOEFL=as.numeric(admisi$TOEFL)
+
+admisi$REKOM_LETTER=gsub(",", ".", admisi$REKOM_LETTER)
+admisi$REKOM_LETTER=as.numeric(admisi$REKOM_LETTER)
+
+admisi$MOT_LETTER=gsub(",", ".", admisi$MOT_LETTER)
+admisi$MOT_LETTER=as.numeric(admisi$MOT_LETTER)
+```
+
+
+#CHECK MISSING VALUE PROFILING DAN ADMISI
+```{r}
+missing_values_profiling = sapply(profiling, function(x) sum(is.na(x)))
+missing_values_profiling
+
+missing_values_admisi = sapply(admisi, function(x) sum(is.na(x)))
+missing_values_admisi
+```
+
+#CHECK DATA YANG SAMA DENGAN DUPLICATE
+```{r}
+anyDuplicated(profiling)
+anyDuplicated(admisi)
+```
+
+#MERGE KEDUA DATA
+```{r}
+datamerge=merge(profiling,admisi, by='ID')
+datamerge
+str(datamerge)
+```
+
+```{r}
+mising_value=sapply(datamerge, function(x) sum(is.na(x)))
+mising_value
+```
