@@ -68,3 +68,255 @@ str(datamerge)
 mising_value=sapply(datamerge, function(x) sum(is.na(x)))
 mising_value
 ```
+
+#HANDLE MISSING VALUE DENGAN MEAN
+```{r}
+#MENGGANTI NILAI NA DENGAN MEAN
+str(datamerge)
+datamerge$Ranking_Uni_Asal[is.na(datamerge$Ranking_Uni_Asal)] = mean(datamerge$Ranking_Uni_Asal, na.rm = TRUE)
+datamerge$Ranking_Uni_Asal = as.numeric(datamerge$Ranking_Uni_Asal)
+datamerge$LULUS = factor(datamerge$LULUS, levels = c(1, 0), labels = c('Lulus', 'Tidak Lulus'))
+datamerge$RISET[is.na(datamerge$RISET)] = mean(datamerge$RISET, na.rm = TRUE)
+
+choices = c("Ya", "Tidak")
+kosong_index = which(datamerge$RISET == "")
+set.seed(123)
+jumlah_kosong = length(kosong_index)
+
+datamerge$RISET[kosong_index] <- sample(choices, jumlah_kosong, replace = TRUE)
+datamerge$RISET = factor(datamerge$RISET)
+
+```
+
+#OUTLIER
+```{r}
+#MENGGUNAKAN BOXPLOT
+boxplot(datamerge$IPK)
+boxplot(datamerge$GRE)
+boxplot(datamerge$USIA)
+boxplot(datamerge$TOEFL)
+boxplot(datamerge$MOT_LETTER)
+boxplot(datamerge$REKOM_LETTER)
+boxplot(datamerge$Ranking_Uni_Asal)
+```
+
+#MENGHAPUS OUTLIER
+```{r}
+# Terdapat outlier pada tabel IPK dan juga Rekom letter
+IQRipk = IQR(datamerge$IPK)
+upoutlier = quantile(datamerge$IPK, 0.75) + 1.5 * IQRipk 
+
+IQRrekom = IQR(datamerge$REKOM_LETTER)
+lowoutlier = quantile(datamerge$REKOM_LETTER, 0.25) - 1.5 * IQRrekom
+
+datamerge = subset(datamerge, datamerge$IPK <= upoutlier & datamerge$REKOM_LETTER >= lowoutlier)
+
+boxplot(datamerge$IPK)
+boxplot(datamerge$REKOM_LETTER)
+```
+
+
+#CORRELATION
+```{r}
+cor = cor(datamerge[, sapply(datamerge, is.numeric)])
+
+library(colorspace)
+ggplot(data = reshape2::melt(cor), aes(x = Var1, y = Var2, fill = value)) +
+  geom_tile(color = "white") +
+  scale_fill_continuous_sequential(palette = "Blues 3", limits = c(-1,1), name="Correlation") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+# MODELING
+```{r}
+library(randomForest)
+library(rpart)
+library(e1071)
+library(class)
+
+# Split train dan testing data
+set.seed(1123)  
+split_ratio = 0.8
+num_rows = nrow(datamerge)
+train_indices = sample(1:num_rows, size = round(split_ratio * num_rows))
+train_data = datamerge[train_indices, ]
+test_data = datamerge[-train_indices, ]
+
+```
+
+#1.RANDOM FOREST
+```{r}
+library(randomForest)
+Fselect = c("RISET", "REKOM_LETTER", "MOT_LETTER", "Ranking_Uni_Asal", "GRE", "TOEFL", "IPK")
+
+RForest = randomForest(factor(LULUS) ~ ., data = train_data [, c("LULUS", Fselect)], 
+                       ntree = 500, importance = TRUE)
+RFprediction = predict(RForest, newdata = test_data)
+RFconfmatrix = confusionMatrix(RFprediction, test_data$LULUS)
+RFaccuracy = RFconfmatrix$overall["Accuracy"]
+RFprecision = RFconfmatrix$byClass[["Pos Pred Value"]]
+print(paste(" RF Accuracy:", RFaccuracy))
+print(paste(" RF Precision:", RFprecision))
+```
+
+```{r}
+# Cek panjang vektor
+length(test_data$LULUS)
+length(RFprediction)  # Pastikan panjang kedua vektor sama
+
+# Cek missing value
+anyNA(test_data$LULUS)
+anyNA(RFprediction)  # Pastikan tidak ada missing value
+```
+
+# Curve ROC AUC Random Forest
+```{r}
+RFROC = roc(test_data$LULUS, as.numeric(RFprediction))
+
+print(paste("RF Accuracy:", RFaccuracy))
+print(paste("RF Precision:", RFprecision))
+
+# PLOT ROC RANDOM FOREST
+plot(RFROC, col = colorspace::sequential_hcl(2, palette = "Viridis"), main = "ROC Curve (Random Forest)", lwd = 2)
+abline(h = seq(0, 1, 0.1), v = seq(0, 1, 0.1), col = "black", lty = 3)
+
+# AUC
+RFAUC = auc(RFROC)
+print(paste("Random Forest AUC:", RFAUC))
+```
+
+#2. KNN
+```{r}
+library(class)
+KNNModel = knn(train_data[, c("Ranking_Uni_Asal", "IPK", "GRE", "TOEFL", "MOT_LETTER", "REKOM_LETTER")],
+                 test_data[, c("Ranking_Uni_Asal", "IPK", "GRE", "TOEFL", "MOT_LETTER", "REKOM_LETTER")],
+                 train_data$LULUS, k = 5)
+
+KNNconfmatrix = confusionMatrix(KNNModel, test_data$LULUS)
+KNNaccuracy = KNNconfmatrix$overall["Accuracy"]
+KNNprecision = KNNconfmatrix$byClass[["Pos Pred Value"]]
+
+print(paste("KNN Accuracy:", KNNaccuracy))
+print(paste("KNN Precision:", KNNprecision))
+```
+
+# Curve ROC AUC KNN
+```{r}
+
+KNNROC = roc(test_data$LULUS, as.numeric(KNNModel))
+
+print(paste("KNN Accuracy:", KNNaccuracy))
+print(paste("KNN Precision:", KNNprecision))
+
+# PLOT ROC KNN 
+plot(KNNROC, col = colorspace::sequential_hcl(2, palette = "Viridis"), main = "ROC Curve (KNN)", lwd = 2)
+abline(h = seq(0, 1, 0.1), v = seq(0, 1, 0.1), col = "black", lty = 3)
+
+# AUC
+KNNAUC = auc(KNNROC)
+print(paste("KNN AUC:", KNNAUC))
+```
+
+#3. DECISION TREE
+```{r}
+library(rpart)
+Fselect = c("RISET", "REKOM_LETTER", "MOT_LETTER", "Ranking_Uni_Asal", "GRE", "TOEFL", "IPK")
+DTreeModel = rpart(LULUS ~ ., data = train_data[, c("LULUS", Fselect)], method = "class")
+
+DTPrediction = predict(DTreeModel, newdata = test_data, type = "class")
+DTconfmatrix = confusionMatrix(DTPrediction, test_data$LULUS)
+DTaccuracy = DTconfmatrix$overall["Accuracy"]
+DTprecision = DTconfmatrix$byClass[["Pos Pred Value"]]
+
+print(paste("DTree Accuracy:", DTaccuracy))
+print(paste("DTree Precision:", DTprecision))
+```
+
+# Curve ROC dan AUC DECISION TREE
+```{r}
+
+DTROC = roc(test_data$LULUS, as.numeric(DTPrediction))
+print(paste("Decision Tree Accuracy:", DTaccuracy))
+print(paste("Decision Tree Precision:", DTPrediction))
+
+# PLOT ROC DECISION TREE
+plot(DTROC, col = colorspace::sequential_hcl(2, palette = "Viridis"), main = "ROC Curve (Decision Tree)", lwd = 2)
+abline(h = seq(0, 1, 0.1), v = seq(0, 1, 0.1), col = "black", lty = 3)
+
+# AUC
+DTAUC = auc(DTROC)
+print(paste("Decision Tree AUC:", DTAUC))
+```
+
+#4.NAIVE BEYES
+```{r}
+
+library(e1071)
+
+NBModel = naiveBayes(LULUS ~ ., data = train_data[, c("LULUS", Fselect)])
+
+NBPrediction = predict(NBModel, newdata = test_data)
+
+NBconfmatrix = confusionMatrix(NBPrediction, test_data$LULUS)
+
+NBaccuracy = NBconfmatrix$overall["Accuracy"]
+NBprecision = NBconfmatrix$byClass[["Pos Pred Value"]]
+
+print(paste("Naive Bayes Accuracy:", NBaccuracy))
+print(paste("Naive Bayes Precision:", NBprecision))
+```
+
+# Curve ROC AUC NAIVE BEYES
+```{r}
+NBROC = roc(test_data$LULUS, as.numeric(NBPrediction))
+
+print(paste("Naive Bayes Accuracy:", NBaccuracy))
+print(paste("Naive Bayes Precision:", NBprecision))
+
+# Plot ROC NAIVE BEYES
+plot(NBROC, col = colorspace::sequential_hcl(2, palette = "Viridis"), main = "ROC Curve (Naive Bayes)", lwd = 2)
+abline(h = seq(0, 1, 0.1), v = seq(0, 1, 0.1), col = "black", lty = 3)
+
+# AUC
+NBAUC = auc(NBROC)
+print(paste("Naive Bayes AUC:", NBAUC))
+```
+
+#5.Logistic Regresion
+```{r}
+datatrainlr <- train_data %>%
+  mutate(LULUS = ifelse(LULUS == "Lulus", 1, 0))
+
+LRModel = glm(LULUS ~ ., data = datatrainlr[, c("LULUS", Fselect)], family = "binomial")
+
+LRpredictions = predict(LRModel, newdata = test_data, type = "response")
+
+LRpredictedclasses = ifelse(LRpredictions > 0.5, "Lulus", "Tidak Lulus")
+
+LRconfmatrix <- confusionMatrix(factor(LRpredictedclasses), test_data$LULUS)
+LRaccuracy = LRconfmatrix$overall["Accuracy"]
+LRprecision = LRconfmatrix$byClass[["Pos Pred Value"]]
+
+print(paste("Logistic Regression Accuracy:", LRaccuracy))
+print(paste("Logistic Regression Precision:", LRprecision))
+```
+
+# Curve ROC AUC Logistic Regression
+```{r}
+# Calculate ROC
+LRROC <- roc(test_data$LULUS, LRpredictions)
+
+# Display evaluation metrics
+print(paste("Logistic Regression Accuracy:", LRaccuracy))
+print(paste("Logistic Regression Precision:", LRprecision))
+
+# Plot ROC Logistic Regression
+plot(LRROC, col = colorspace::sequential_hcl(2, palette = "Viridis"), main = "ROC Curve (Logistic Regression)", lwd = 2)
+abline(h = seq(0, 1, 0.1), v = seq(0, 1, 0.1), col = "black", lty = 3)
+
+# AUC
+LRAUC <- auc(LRROC)
+print(paste("Logistic Regression AUC:", LRAUC))
+```
+
