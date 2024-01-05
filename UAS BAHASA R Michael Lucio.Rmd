@@ -320,3 +320,54 @@ LRAUC <- auc(LRROC)
 print(paste("Logistic Regression AUC:", LRAUC))
 ```
 
+# PERBANDINGAN AKURASI DAN PRESISI PADA SETIAP MODEL MENGGUNAKAN BAR CHART
+```{r}
+library(ggplot2)
+model_names = c("Random Forest", "Decision Tree", "KNN", "Naive Bayes", "Logistic Regresion")
+accuracies = c(RFaccuracy, DTaccuracy, KNNaccuracy, NBaccuracy, LRaccuracy)
+precisions = c(RFprecision, DTprecision, KNNprecision, NBprecision, LRprecision)
+
+model_metrics = data.frame(Model = model_names, Accuracy = accuracies, Precision = precisions)
+
+library(reshape2)
+
+model_metrics_melted = melt(model_metrics, id.vars = "Model", variable.name = "Metric", value.name = "Value")
+ggplot(model_metrics_melted, aes(x = Model, y = Value, fill = Metric)) +
+  geom_bar(stat = "identity", position = "dodge", color = "black") +
+  labs(title = "Comparison of all Models",
+       y = "Metric Value",
+       x = "Model") +
+  scale_fill_manual(values = c("Accuracy" = "skyblue", "Precision" = "yellow")) +
+  theme_minimal() +
+  geom_text(aes(label = sprintf("%.2f", Value), y = Value), vjust = -0.5, position = position_dodge(width = 0.9))
+```
+
+# CURVE ROC COMPARISON EVERY MODEL
+```{r}
+library(pROC)
+
+plot(RFROC, col = "skyblue", main = "Merge ROC Curves", lwd = 2, cex.main = 1.5, cex.lab = 1.2, cex.axis = 1.2)
+lines(DTROC, col = "yellow", lwd = 2)
+lines(KNNROC, col = "green", lwd = 2)
+lines(NBROC, col = "black", lwd = 2)
+lines(LRROC, col = "red", lwd = 2)
+legend("bottomright", legend = c("Random Forest", "Decision Tree", "KNN", "Naive Bayes", "Logistic Regression"),
+       col = c("skyblue", "yellow", "green", "black", "red"), lwd = 2)
+
+```
+
+# PERBANDINGAN AUC SETIAP MODEL MENGGUNAKAN BAR CHART VISUALIASI
+```{r}
+# Perbandingan AUC Setiap Model
+model_auc <- c(auc(RFROC), auc(DTROC), auc(KNNROC), auc(NBROC), auc(LRROC))
+
+# Visualisasi dengan bar plot
+barplot(model_auc, names.arg = c("Random Forest", "DTree", "KNN", "Naive Bayes", "LRegression"),
+        col = c("skyblue", "yellow", "green", "black", "red"),
+        main = "Perbandingan AUC Setiap Model",
+        xlab = "Model", ylab = "AUC", ylim = c(0, 1.1),
+        cex.main = 1, cex.lab = 0.7, cex.axis = 1)
+text(seq_along(model_auc), model_auc + 0.01, labels = sprintf("%.3f", model_auc),
+     cex = 1, col = "red", pos = 3)
+
+```
