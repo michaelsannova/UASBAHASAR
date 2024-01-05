@@ -237,8 +237,9 @@ print(paste("DTree Precision:", DTprecision))
 ```{r}
 
 DTROC = roc(test_data$LULUS, as.numeric(DTPrediction))
+
 print(paste("Decision Tree Accuracy:", DTaccuracy))
-print(paste("Decision Tree Precision:", DTPrediction))
+print(paste("Decision Tree Precision:", DTprecision))
 
 # PLOT ROC DECISION TREE
 plot(DTROC, col = colorspace::sequential_hcl(2, palette = "Viridis"), main = "ROC Curve (Decision Tree)", lwd = 2)
@@ -304,10 +305,8 @@ print(paste("Logistic Regression Precision:", LRprecision))
 
 # Curve ROC AUC Logistic Regression
 ```{r}
-# Calculate ROC
 LRROC <- roc(test_data$LULUS, LRpredictions)
 
-# Display evaluation metrics
 print(paste("Logistic Regression Accuracy:", LRaccuracy))
 print(paste("Logistic Regression Precision:", LRprecision))
 
@@ -369,5 +368,84 @@ barplot(model_auc, names.arg = c("Random Forest", "DTree", "KNN", "Naive Bayes",
         cex.main = 1, cex.lab = 0.7, cex.axis = 1)
 text(seq_along(model_auc), model_auc + 0.01, labels = sprintf("%.3f", model_auc),
      cex = 1, col = "red", pos = 3)
+
+```
+
+# NARASI
+
+# DISINI KAMI MENGGUNAKAN LIMA MODEL YAITU RANDOM FOREST, DECISION TREE, KNN, NAIVE BEYES, DAN LOGISTIC REGRESSION
+# DARI KELIMA MODEL TERSEBUT, DIDAPATKAN DATA SEPERTI BERIKUT :
+
+# ACCURACY : 
+# RANDOM FOREST       : 0.898989898989899 (90%)
+# DECISION TREE       : 0.878787878787879 (88%)
+# KNN                 : 0.898989898989899 (90%)
+# NAIVE BEYES         : 0.929292929292929 (93%)
+# LOGISTIC REGRESSION : 0.939393939393939 (94%)
+
+# PRECISION :
+# RANDOM FOREST       : 0.931034482758621 (93%)
+# DECISION TREE       : 0.925925925925926 (92%)
+# KNN                 : 0.931034482758621 (93%)
+# NAIVE BEYES         : 0.888888888888889 (89%)
+# LOGISTIC REGRESSION : 0.939393939393939 (94%)
+
+# AUC :
+# RANDOM FOREST       : 0.870089285714286 (87%)
+# DECISION TREE       : 0.841517857142857 (84%)
+# KNN                 : 0.870089285714286 (87%)
+# NAIVE BEYES         : 0.925892857142857 (93%)
+# LOGISTIC REGRESSION : 0.984375          (98%)
+
+# Menurut kami setelah menggunakan lima model yang berbeda yaitu Random Forest, KNN, Naive Beyes, Decision Tree, dan Logistic Regresi. Logistic Regresi merupakan model yang terbaik yang dapat digunakan untuk dataset kali ini,Naive beyesmemiliki nilai presisi yang tertinggi yaitu sebesar 94% dan juga Logistic Regresi memiliki akurasi  tertinggi dengan nilai 94% serta AUC Logistic Regresi juga adalah yang tertinggi yaitu 0.984375
+
+# DARI KELIMA MODEL YANG SUDAH KAMI PAKAI YAITU RANDOM FOREST, KNN, NAIVE BEYES, DECISION TREE, DAN LOGISTIC REGRESSION, KAMI MEMILIH LOGISTIC REGRESSION SEBAGAI MODEL YANG KITA GUNAKAN UNTUK DATASET INI, LOGISTIC REGRESSION MEMILIKI NILAI PRESISI YANG TERTINGGI Y AITU 94% DAN JUGA LOGISTIC REGRESSION MEMILIKI AKURASI DAN AUC YANG TERTINGGI YAITU AKURASI 94% DAN JUGA AUC 98%. 
+
+#SHINY MENGGUNAKAN LOGISTIC REGRESSION MODEL
+```{r}
+library(shiny)
+library(shinydashboard)
+library(shinyjs)
+
+ui=fluidPage(
+  titlePanel("IEDU PREDICT"),
+  sidebarLayout(
+    sidebarPanel(
+      numericInput("Ranking_Uni_Asal","RANKING UNI ASAL (MAX 5)", value=1),
+      numericInput("IPK","IPK (MAX 4): ", value=0),
+       selectInput("RISET", "MELAKUKAN RISET", choices = c("Ya", "Tidak"), 
+                  selected = "Ya"),
+      numericInput("GRE", "GRE SCORE", value = 0),
+      numericInput("TOEFL", "TOEFL SCORE", value = 0),
+      numericInput("MOT_LETTER", "MOTIVATION LETTER SCORE (MAX 5)", value = 0),
+      numericInput("REKOM_LETTER", "RECOMMENDATION LETTER SCORE (MAX 5)", value = 0),
+      actionButton("predict", "predict")
+    ), 
+    mainPanel(
+      textOutput("hasil")
+    )
+  )
+)
+
+server <- function(input, output) {
+  observeEvent(input$predict, {
+    predictions_IEDU <- predict(LRModel, 
+                                newdata = data.frame(
+                                  Ranking_Uni_Asal = input$Ranking_Uni_Asal,
+                                  IPK = input$IPK,
+                                  RISET = input$RISET,
+                                  GRE = input$GRE,
+                                  TOEFL = input$TOEFL,
+                                  MOT_LETTER = input$MOT_LETTER,
+                                  REKOM_LETTER = input$REKOM_LETTER
+                                ),)
+    result <- ifelse(predictions_IEDU > 0.5, "LULUS", "TIDAK LULUS")
+    output$hasil <- renderText({
+      paste("BERIKUT ADALAH HASIL PREDIKSI IEDU: ", result)
+    })
+  })
+}
+
+shinyApp(ui, server)
 
 ```
